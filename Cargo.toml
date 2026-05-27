@@ -1,0 +1,16 @@
+[package]
+name = "url_probe"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+clap = { version = "4.6.0", features = ["derive"] }
+csv = "1.4.0"
+futures = "0.3.32"
+reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "charset", "http2", "socks"] }
+scraper = "0.26.0"
+serde = { version = "1.0.228", features = ["serde_derive"] }
+serde_json = "1.0.149"
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
+url = "2.5.8"
