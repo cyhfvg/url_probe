@@ -28,7 +28,7 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Build release binaries for url_probe with locked dependencies.
+Build release binaries for ${BINARY_NAME} with locked dependencies.
 
 Options:
   --target <TARGET>  Build one supported target. May be repeated.
