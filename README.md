@@ -64,7 +64,8 @@ url_probe --target https://example.com --proxy 'socks5h://username:password@127.
 ```
 
 A target file contains one HTTP or HTTPS URL per line. Empty lines and lines
-beginning with `#` are ignored.
+beginning with `#` are ignored. Invalid URL lines are reported with their line
+number, and an empty target set exits with a clear diagnostic.
 
 ## Common Options
 
@@ -116,8 +117,10 @@ history, logs, or shared process inspection.
 ## Output
 
 CSV output includes a header and the columns `url`, `http_code`,
-`size_download`, `webtitle`, and `error`. JSON Lines output writes one object
-per result with equivalent fields.
+`size_download`, `webtitle`, `error_kind`, and `error`. JSON Lines output writes
+one object per result with equivalent fields. `error_kind` is a stable category
+such as `timeout`, `connect`, `redirect`, `body`, or `request`, which is easier
+to aggregate than the human-readable `error` text.
 
 ## Benchmarks
 

@@ -240,8 +240,21 @@ fn assert_success(output: &Output) {
     );
 }
 
+fn assert_failure(output: &Output) {
+    assert!(
+        !output.status.success(),
+        "expected failure\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 fn stdout_string(output: &Output) -> String {
     String::from_utf8(output.stdout.clone()).expect("stdout is UTF-8")
+}
+
+fn stderr_string(output: &Output) -> String {
+    String::from_utf8(output.stderr.clone()).expect("stderr is UTF-8")
 }
 
 fn csv_rows(stdout: &str) -> Vec<csv::StringRecord> {
@@ -256,6 +269,33 @@ fn path_str(path: &Path) -> &str {
 }
 
 #[test]
+fn invalid_url_in_target_file_reports_line_number() {
+    let targets = TempFile::new(
+        "invalid-targets.txt",
+        "https://example.com\nftp://example.com\n",
+    );
+
+    let output = run_url_probe(&["--target", path_str(&targets.path)]);
+    assert_failure(&output);
+
+    let stderr = stderr_string(&output);
+    assert!(stderr.contains("Input error: invalid target URL (line 2)"));
+    assert!(stderr.contains("ftp://example.com"));
+    assert!(stderr.contains("unsupported URL scheme 'ftp'"));
+}
+
+#[test]
+fn empty_target_file_reports_no_targets() {
+    let targets = TempFile::new("empty-targets.txt", "# comment\n\n");
+
+    let output = run_url_probe(&["--target", path_str(&targets.path)]);
+    assert_failure(&output);
+
+    let stderr = stderr_string(&output);
+    assert!(stderr.contains("Input error: no probe targets found:"));
+}
+
+#[test]
 fn get_request_extracts_html_title_and_csv_output() {
     let server = TestServer::start();
 
@@ -263,13 +303,14 @@ fn get_request_extracts_html_title_and_csv_output() {
     assert_success(&output);
 
     let stdout = stdout_string(&output);
-    assert!(stdout.starts_with("url,http_code,size_download,webtitle,error\n"));
+    assert!(stdout.starts_with("url,http_code,size_download,webtitle,error_kind,error\n"));
     let rows = csv_rows(&stdout);
     assert_eq!(rows.len(), 1);
     assert_eq!(&rows[0][1], "200");
     assert_eq!(&rows[0][2], "60");
     assert_eq!(&rows[0][3], "Local Test Title");
     assert_eq!(&rows[0][4], "");
+    assert_eq!(&rows[0][5], "");
     assert!(server.saw_method("GET", "/get-title"));
 }
 
@@ -315,6 +356,7 @@ fn jsonl_output_serializes_probe_result() {
     assert_eq!(record["http_code"], 200);
     assert_eq!(record["size_download"], 25);
     assert_eq!(record["webtitle"], "Json Title");
+    assert!(record["error_kind"].is_null());
     assert!(record["error"].is_null());
 }
 
@@ -402,7 +444,8 @@ fn timeout_failures_are_retried() {
     let rows = csv_rows(&stdout);
     assert_eq!(rows.len(), 1);
     assert_eq!(&rows[0][1], "");
-    assert!(rows[0][4].contains("Request error:"));
+    assert_eq!(&rows[0][4], "timeout");
+    assert!(rows[0][5].contains("Request error:"));
     assert_eq!(server.request_count("/slow"), 2);
 }
 
@@ -421,7 +464,10 @@ fn output_with_error_false_suppresses_failed_results() {
     assert_success(&output);
 
     let stdout = stdout_string(&output);
-    assert_eq!(stdout, "url,http_code,size_download,webtitle,error\n");
+    assert_eq!(
+        stdout,
+        "url,http_code,size_download,webtitle,error_kind,error\n"
+    );
 }
 
 #[test]

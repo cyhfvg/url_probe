@@ -11,7 +11,43 @@ pub struct ProbeResult {
     pub http_code: Option<u16>,
     pub size_download: Option<u64>,
     pub webtitle: Option<String>,
+    pub error_kind: Option<ProbeErrorKind>,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProbeErrorKind {
+    Timeout,
+    Connect,
+    Redirect,
+    Body,
+    Request,
+}
+
+impl ProbeErrorKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ProbeErrorKind::Timeout => "timeout",
+            ProbeErrorKind::Connect => "connect",
+            ProbeErrorKind::Redirect => "redirect",
+            ProbeErrorKind::Body => "body",
+            ProbeErrorKind::Request => "request",
+        }
+    }
+}
+
+fn classify_request_error(err: &reqwest::Error) -> ProbeErrorKind {
+    if err.is_timeout() {
+        ProbeErrorKind::Timeout
+    } else if err.is_connect() {
+        ProbeErrorKind::Connect
+    } else if err.is_redirect() {
+        ProbeErrorKind::Redirect
+    } else if err.is_body() {
+        ProbeErrorKind::Body
+    } else {
+        ProbeErrorKind::Request
+    }
 }
 
 fn build_proxy(proxy_url: &str) -> Result<reqwest::Proxy, RequestError> {
@@ -26,7 +62,7 @@ fn build_proxy(proxy_url: &str) -> Result<reqwest::Proxy, RequestError> {
     reqwest::Proxy::all(parsed_url).map_err(|source| RequestError::ConfigureProxy { source })
 }
 
-/// 构建reqwest客户端，根据命令行参数设置用户代理、超时、重定向策略等
+/// Build a reqwest client from CLI options.
 pub fn build_reqwest_client(args: &Args) -> Result<Client, RequestError> {
     let redirect_policy = if args.follow_redirect {
         reqwest::redirect::Policy::limited(10)
@@ -49,7 +85,7 @@ pub fn build_reqwest_client(args: &Args) -> Result<Client, RequestError> {
         .map_err(|why| RequestError::BuildClientFailed { source: why })
 }
 
-/// 从HTML内容中提取<title>标签的内容，作为webtitle
+/// Extract the HTML <title> text as the webtitle.
 pub fn extract_title(body: &[u8]) -> Option<String> {
     let html = std::str::from_utf8(body).ok()?;
     let document = Html::parse_document(html);
@@ -72,7 +108,7 @@ async fn wait_for_request_jitter(max_jitter_ms: u64) {
     }
 }
 
-/// 对单个URL进行探测，返回ProbeResult
+/// Probe one URL and return a ProbeResult.
 pub async fn probe_once(
     client: &Client,
     url: Url,
@@ -96,6 +132,7 @@ pub async fn probe_once(
                 http_code: None,
                 size_download: None,
                 webtitle: None,
+                error_kind: Some(classify_request_error(&e)),
                 error: Some(format!("Request error: {}", e)),
             };
         }
@@ -104,12 +141,13 @@ pub async fn probe_once(
     let status = response.status().as_u16();
 
     if matches!(method, HttpMethod::Head) {
-        // HEAD请求不下载内容，直接返回结果
+        // HEAD requests do not download a response body.
         return ProbeResult {
             url: url_for_result,
             http_code: Some(status),
             size_download: None,
             webtitle: None,
+            error_kind: None,
             error: None,
         };
     }
@@ -131,6 +169,7 @@ pub async fn probe_once(
                 http_code: Some(status),
                 size_download: None,
                 webtitle: None,
+                error_kind: Some(ProbeErrorKind::Body),
                 error: Some(format!("Read body error: {}", e)),
             };
         }
@@ -145,11 +184,12 @@ pub async fn probe_once(
         http_code: Some(status),
         size_download: Some(size_download),
         webtitle,
+        error_kind: None,
         error: None,
     }
 }
 
-/// 对单个URL进行探测，失败时重试指定次数，返回最终的ProbeResult
+/// Probe one URL and retry failed requests before returning the final ProbeResult.
 pub async fn probe_once_with_retry(
     client: &Client,
     url: Url,

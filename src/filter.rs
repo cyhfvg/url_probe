@@ -1,7 +1,7 @@
 use crate::cli::Args;
 use crate::probe::ProbeResult;
 
-/// 根据命令行参数过滤探测结果，返回是否应该输出该结果
+/// Return whether a probe result should be written for the current CLI options.
 pub fn should_output(res: &ProbeResult, args: &Args) -> bool {
     if res.error.is_some() && !args.output_with_error {
         return false;

@@ -58,7 +58,8 @@ printf '%s\n' 'https://example.com' | url_probe --target - --insecure false
 url_probe --target https://example.com --proxy 'socks5h://username:password@127.0.0.1:1080' --insecure false
 ```
 
-目标文件每行填写一个 HTTP 或 HTTPS URL。空行和以 `#` 开头的行会被忽略。
+目标文件每行填写一个 HTTP 或 HTTPS URL。空行和以 `#` 开头的行会被忽略。无效
+URL 行会报告具体行号，空目标集会以明确诊断退出。
 
 ## 常用选项
 
@@ -105,8 +106,10 @@ url_probe --target https://example.com --proxy 'socks5h://username:password@127.
 
 ## 输出结果
 
-CSV 输出包含表头和 `url`、`http_code`、`size_download`、`webtitle`、`error`
-五列。JSON Lines 输出为每个结果写入一个具有对应字段的对象。
+CSV 输出包含表头和 `url`、`http_code`、`size_download`、`webtitle`、`error_kind`、
+`error` 六列。JSON Lines 输出为每个结果写入一个具有对应字段的对象。`error_kind`
+是稳定的错误分类，例如 `timeout`、`connect`、`redirect`、`body` 或 `request`，
+比面向人类阅读的 `error` 文本更适合批量统计。
 
 ## 性能测试
 

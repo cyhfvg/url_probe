@@ -46,16 +46,42 @@ pub enum InputError {
     ReadTargetLine {
         source: std::io::Error,
     },
+    InvalidTargetUrl {
+        value: String,
+        line: Option<usize>,
+        source: String,
+    },
+    NoTargets {
+        source: String,
+    },
 }
 
 impl Display for InputError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InputError::OpenTargetFileError { path, source } => {
-                write!(f, "打开目标文件失败: {}, 错误: {}", path, source)
+                write!(f, "failed to open target file: {}, error: {}", path, source)
             }
             InputError::ReadTargetLine { source } => {
-                write!(f, "读取目标行失败: {}", source)
+                write!(f, "failed to read target line: {}", source)
+            }
+            InputError::InvalidTargetUrl {
+                value,
+                line,
+                source,
+            } => {
+                if let Some(line) = line {
+                    write!(
+                        f,
+                        "invalid target URL (line {}): {}, reason: {}",
+                        line, value, source
+                    )
+                } else {
+                    write!(f, "invalid target URL: {}, reason: {}", value, source)
+                }
+            }
+            InputError::NoTargets { source } => {
+                write!(f, "no probe targets found: {}", source)
             }
         }
     }
@@ -82,16 +108,20 @@ impl Display for OutputError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OutputError::Write { source } => {
-                write!(f, "写入输出失败: {}", source)
+                write!(f, "failed to write output: {}", source)
             }
             OutputError::CreateFile { path, source } => {
-                write!(f, "创建输出文件失败: {}, 错误: {}", path, source)
+                write!(
+                    f,
+                    "failed to create output file: {}, error: {}",
+                    path, source
+                )
             }
             OutputError::CsvWrite { source } => {
-                write!(f, "CSV写入错误: {}", source)
+                write!(f, "CSV write error: {}", source)
             }
             OutputError::JsonlWrite { source } => {
-                write!(f, "JSONL写入错误: {}", source)
+                write!(f, "JSONL write error: {}", source)
             }
         }
     }
@@ -109,16 +139,16 @@ impl Display for RequestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RequestError::InvalidProxyUrl { source } => {
-                write!(f, "代理必须为有效的 scheme URL: {}", source)
+                write!(f, "proxy must be a valid scheme URL: {}", source)
             }
             RequestError::UnsupportedProxyScheme { scheme } => {
-                write!(f, "不支持的代理 URL scheme: {}", scheme)
+                write!(f, "unsupported proxy URL scheme: {}", scheme)
             }
             RequestError::ConfigureProxy { source } => {
-                write!(f, "配置代理失败: {}", source)
+                write!(f, "failed to configure proxy: {}", source)
             }
             RequestError::BuildClientFailed { source } => {
-                write!(f, "构建HTTP客户端失败: {}", source)
+                write!(f, "failed to build HTTP client: {}", source)
             }
         }
     }

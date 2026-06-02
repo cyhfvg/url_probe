@@ -46,6 +46,7 @@ fn sample_probe_result() -> ProbeResult {
         http_code: Some(200),
         size_download: Some(1024),
         webtitle: Some("Example Domain".to_string()),
+        error_kind: None,
         error: None,
     }
 }

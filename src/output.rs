@@ -5,7 +5,14 @@ use std::fs::File;
 use std::io;
 use std::io::BufWriter;
 
-const CSV_HEADER: [&str; 5] = ["url", "http_code", "size_download", "webtitle", "error"];
+const CSV_HEADER: [&str; 6] = [
+    "url",
+    "http_code",
+    "size_download",
+    "webtitle",
+    "error_kind",
+    "error",
+];
 
 #[derive(serde::Serialize)]
 struct JsonlRecord {
@@ -13,16 +20,18 @@ struct JsonlRecord {
     http_code: Option<u16>,
     size_download: Option<u64>,
     webtitle: Option<String>,
+    error_kind: Option<&'static str>,
     error: Option<String>,
 }
 
-/// 将ProbeResult转换为JsonLRecord，方便后续序列化为JSONL格式
+/// Convert ProbeResult into JsonlRecord for JSON Lines serialization.
 fn to_jsonl_record(res: &ProbeResult) -> JsonlRecord {
     JsonlRecord {
         url: res.url.to_string(),
         http_code: res.http_code,
         size_download: res.size_download,
         webtitle: res.webtitle.clone(),
+        error_kind: res.error_kind.map(|kind| kind.as_str()),
         error: res.error.clone(),
     }
 }
@@ -32,7 +41,7 @@ pub enum OutputWriter {
     Jsonl(Box<dyn io::Write>),
 }
 
-/// 构建输出写入器，根据用户指定的格式和路径创建相应的输出对象
+/// Build an output writer from the selected output format and path.
 pub fn build_output_writer(
     output: Option<&str>,
     format: OutputFormat,
@@ -49,7 +58,7 @@ pub fn build_output_writer(
     }
 }
 
-/// 写入输出文件的header
+/// Write the output header.
 pub fn write_header(writer: &mut OutputWriter) -> Result<(), OutputError> {
     match writer {
         OutputWriter::Csv(csv_writer) => write_csv_header(csv_writer.as_mut()),
@@ -57,7 +66,7 @@ pub fn write_header(writer: &mut OutputWriter) -> Result<(), OutputError> {
     }
 }
 
-/// 将ProbeResult记录写入输出文件
+/// Write one ProbeResult record.
 pub fn write_result(writer: &mut OutputWriter, res: &ProbeResult) -> Result<(), OutputError> {
     match writer {
         OutputWriter::Csv(csv_writer) => write_csv_record(csv_writer.as_mut(), res),
@@ -65,7 +74,7 @@ pub fn write_result(writer: &mut OutputWriter, res: &ProbeResult) -> Result<(), 
     }
 }
 
-/// 结束输出，确保所有数据都被写入文件
+/// Finish output and flush buffered data.
 pub fn finish_output(writer: &mut OutputWriter) -> Result<(), OutputError> {
     match writer {
         OutputWriter::Csv(csv_writer) => csv_writer
@@ -77,7 +86,7 @@ pub fn finish_output(writer: &mut OutputWriter) -> Result<(), OutputError> {
     }
 }
 
-/// 创建CSV写入器，根据输出路径决定是写入文件还是标准输出
+/// Create a CSV writer for a file path or stdout.
 pub fn create_csv_writer(
     output_path: Option<&str>,
 ) -> Result<csv::Writer<Box<dyn io::Write>>, OutputError> {
@@ -94,14 +103,14 @@ pub fn create_csv_writer(
     Ok(csv::Writer::from_writer(writer))
 }
 
-/// 写入CSV文件的header
+/// Write the CSV header.
 pub fn write_csv_header<W: io::Write>(writer: &mut csv::Writer<W>) -> Result<(), OutputError> {
     writer
         .write_record(CSV_HEADER)
         .map_err(|why| OutputError::CsvWrite { source: why })
 }
 
-/// 将ProbeResult记录写入CSV
+/// Write one ProbeResult as a CSV record.
 pub fn write_csv_record<W: io::Write>(
     writer: &mut csv::Writer<W>,
     res: &ProbeResult,
@@ -110,6 +119,10 @@ pub fn write_csv_record<W: io::Write>(
     let http_code = res.http_code.map(|v| v.to_string()).unwrap_or_default();
     let size_download = res.size_download.map(|v| v.to_string()).unwrap_or_default();
     let webtitle = res.webtitle.clone().unwrap_or_default();
+    let error_kind = res
+        .error_kind
+        .map(|kind| kind.as_str().to_string())
+        .unwrap_or_default();
     let error = res.error.clone().unwrap_or_default();
 
     writer
@@ -118,12 +131,13 @@ pub fn write_csv_record<W: io::Write>(
             http_code.as_str(),
             size_download.as_str(),
             webtitle.as_str(),
+            error_kind.as_str(),
             error.as_str(),
         ])
         .map_err(|why| OutputError::CsvWrite { source: why })
 }
 
-/// 创建JSONL写入器，根据输出路径决定是写入文件还是标准输出
+/// Create a JSON Lines writer for a file path or stdout.
 pub fn create_jsonl_writer(output_path: Option<&str>) -> Result<Box<dyn io::Write>, OutputError> {
     let writer: Box<dyn io::Write> = match output_path {
         Some(path) => {
@@ -138,7 +152,7 @@ pub fn create_jsonl_writer(output_path: Option<&str>) -> Result<Box<dyn io::Writ
     Ok(writer)
 }
 
-/// 将ProbeResult写入JSONL文件，每行一个JSON对象
+/// Write one ProbeResult as a JSON Lines object.
 pub fn write_jsonl_line(writer: &mut dyn io::Write, res: &ProbeResult) -> Result<(), OutputError> {
     let jsonl_record = to_jsonl_record(res);
     serde_json::to_writer(&mut *writer, &jsonl_record)

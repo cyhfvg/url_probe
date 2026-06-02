@@ -21,6 +21,8 @@
 - [x] 支持仅保留指定状态码、屏蔽指定状态码和屏蔽指定响应大小。
 - [x] 支持选择是否输出失败请求结果。
 - [x] 支持将 CSV 或 JSON Lines 输出到 stdout 或文件。
+- [x] 输出稳定的 `error_kind` 错误分类，便于批量统计失败原因。
+- [x] 对目标清单中的无效 URL 和空目标集提供明确诊断。
 - [x] 配置了 GitHub Actions CI 以及 Linux/Windows 发布构建工作流。
 - [x] 通过 CI 配置的严格 Clippy 检查（`-D warnings`）。
 - [x] 增加 Criterion benchmark，覆盖请求辅助逻辑、过滤、输出和 URL 加载路径。
@@ -31,7 +33,6 @@
 
 - `--insecure` 当前默认为 `true`，即默认接受无效 HTTPS 证书；对证书有效性敏感的
   检查应显式使用 `--insecure false`。
-- 输入中的无效 URL 会被跳过，目前不会在输出中单独报告。
 - 请求按完成顺序写出；启用并发后，输出顺序不保证与输入顺序一致。
 - `GET` 会读取整个响应体以计算大小和提取标题，大响应可能带来较高内存和流量开销。
 - 代理参数仅接受 `http://`、`https://`、`socks5://` 或 `socks5h://` scheme

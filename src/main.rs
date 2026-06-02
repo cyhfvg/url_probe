@@ -7,7 +7,7 @@ use url_probe::input::load_targets;
 use url_probe::output::{build_output_writer, finish_output, write_header, write_result};
 use url_probe::probe::{build_reqwest_client, probe_once_with_retry};
 
-/// 主运行函数，处理命令行参数，加载目标URL，执行探测，并输出结果
+/// Parse CLI options, load target URLs, probe them, and write output.
 async fn run() -> Result<(), CliError> {
     let args = Args::parse();
 
@@ -21,7 +21,7 @@ async fn run() -> Result<(), CliError> {
     let mut output_writer = build_output_writer(args.output.as_deref(), args.format)?;
     write_header(&mut output_writer)?;
 
-    // 使用异步流处理目标URL，限制并发数量，并根据过滤条件输出结果 {{{1
+    // Process target URLs with bounded async concurrency and output filtering. {{{1
     let results =
         stream::iter(
             targets.into_iter().map(|target| {
