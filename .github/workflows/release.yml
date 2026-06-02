@@ -138,5 +138,6 @@ jobs:
         with:
           body_path: release-notes.md
           files: |
-            release-assets/**/*
+            release-assets/**/*.tar.gz
+            release-assets/**/*.zip
             release-assets/SHA256SUMS.txt

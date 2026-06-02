@@ -1,6 +1,6 @@
 [package]
 name = "url_probe"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A command-line tool for checking HTTP/HTTPS endpoints and recording response metadata."
 license = "BSD-3-Clause"
