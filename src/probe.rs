@@ -50,7 +50,7 @@ pub fn build_reqwest_client(args: &Args) -> Result<Client, RequestError> {
 }
 
 /// 从HTML内容中提取<title>标签的内容，作为webtitle
-fn extract_title(body: &[u8]) -> Option<String> {
+pub fn extract_title(body: &[u8]) -> Option<String> {
     let html = std::str::from_utf8(body).ok()?;
     let document = Html::parse_document(html);
     let selector = Selector::parse("title").ok()?;
@@ -58,9 +58,30 @@ fn extract_title(body: &[u8]) -> Option<String> {
     Some(title.text().collect::<String>().trim().to_string())
 }
 
+pub fn request_jitter_delay(max_jitter_ms: u64) -> Option<Duration> {
+    if max_jitter_ms == 0 {
+        None
+    } else {
+        Some(Duration::from_millis(fastrand::u64(..=max_jitter_ms)))
+    }
+}
+
+async fn wait_for_request_jitter(max_jitter_ms: u64) {
+    if let Some(delay) = request_jitter_delay(max_jitter_ms) {
+        tokio::time::sleep(delay).await;
+    }
+}
+
 /// 对单个URL进行探测，返回ProbeResult
-pub async fn probe_once(client: &Client, url: Url, method: HttpMethod) -> ProbeResult {
+pub async fn probe_once(
+    client: &Client,
+    url: Url,
+    method: HttpMethod,
+    request_jitter_ms: u64,
+) -> ProbeResult {
     let url_for_result = url.clone();
+    wait_for_request_jitter(request_jitter_ms).await;
+
     let request = match method {
         HttpMethod::Get => client.get(url.clone()),
         HttpMethod::Head => client.head(url.clone()),
@@ -134,14 +155,15 @@ pub async fn probe_once_with_retry(
     url: Url,
     method: HttpMethod,
     retries: usize,
+    request_jitter_ms: u64,
 ) -> ProbeResult {
-    let mut last_result = probe_once(client, url.clone(), method).await;
+    let mut last_result = probe_once(client, url.clone(), method, request_jitter_ms).await;
     if last_result.error.is_none() {
         return last_result;
     }
 
     for _ in 0..retries {
-        let result = probe_once(client, url.clone(), method).await;
+        let result = probe_once(client, url.clone(), method, request_jitter_ms).await;
         if result.error.is_none() {
             return result;
         }
@@ -200,5 +222,19 @@ mod tests {
             build_proxy("ftp://127.0.0.1:21"),
             Err(RequestError::UnsupportedProxyScheme { .. })
         ));
+    }
+
+    #[test]
+    fn request_jitter_delay_is_disabled_for_zero() {
+        assert_eq!(request_jitter_delay(0), None);
+    }
+
+    #[test]
+    fn request_jitter_delay_is_bounded_by_maximum() {
+        for _ in 0..256 {
+            let delay = request_jitter_delay(25).expect("jitter delay");
+
+            assert!(delay <= Duration::from_millis(25));
+        }
     }
 }

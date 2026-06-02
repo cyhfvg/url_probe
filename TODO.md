@@ -11,6 +11,7 @@
 - [y] --concurrency ,用来设置同时访问的“线程“数
 - [y] --timeout , 用来设置单url访问超时时间
 - [y] --retry , 用来设置访问超时，访问失败时的重试次数
+- [y] --request-jitter-ms , 每个 HTTP 请求发送前随机等待 0 到指定毫秒数之间的时间
 - [y] -o, --output , 用来设置输出的文件路径，默认为输出到stdout
 - [y] --method , 默认GET，可选 HEAD、POST等
 - [y] --user-agent , 设置user-agent，默认 `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36`

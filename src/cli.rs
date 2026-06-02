@@ -48,6 +48,10 @@ pub struct Args {
     #[arg(long = "retry", default_value_t = 0)]
     pub retry: usize,
 
+    /// Maximum random delay in milliseconds before each HTTP request
+    #[arg(long = "request-jitter-ms", default_value_t = 0)]
+    pub request_jitter_ms: u64,
+
     /// Output file path (defaults to stdout)
     #[arg(short = 'o', long = "output")]
     pub output: Option<String>,
@@ -82,4 +86,32 @@ pub struct Args {
     /// Output format
     #[arg(long = "format", value_enum, default_value_t = OutputFormat::Csv)]
     pub format: OutputFormat,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn parses_request_jitter_ms() {
+        let args = Args::try_parse_from([
+            "url_probe",
+            "--target",
+            "https://example.com",
+            "--request-jitter-ms",
+            "250",
+        ])
+        .expect("valid arguments");
+
+        assert_eq!(args.request_jitter_ms, 250);
+    }
+
+    #[test]
+    fn request_jitter_ms_defaults_to_zero() {
+        let args = Args::try_parse_from(["url_probe", "--target", "https://example.com"])
+            .expect("valid arguments");
+
+        assert_eq!(args.request_jitter_ms, 0);
+    }
 }

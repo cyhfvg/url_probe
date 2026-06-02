@@ -15,7 +15,7 @@ authorized list of endpoints.
 
 - Accepts a single URL, a URL list file, or URLs piped through standard input.
 - Supports `GET` and `HEAD` requests with configurable concurrency, timeout,
-  retries, redirects, and user agent.
+  retries, redirects, per-request jitter, and user agent.
 - Supports authenticated HTTP, HTTPS, SOCKS5, and SOCKS5H proxies through a
   single proxy URL.
 - Filters results by HTTP status code or downloaded response size.
@@ -75,6 +75,7 @@ beginning with `#` are ignored.
 | `--format <csv\|jsonl>` | Choose output format; default is `csv` |
 | `--method <get\|head>` | Choose request method; default is `get` |
 | `--concurrency <N>` | Set concurrent requests; default is `50` |
+| `--request-jitter-ms <MS>` | Wait a random `0..=MS` milliseconds before each HTTP request; default is `0` |
 | `--timeout <SECONDS>` | Set request timeout; default is `10` |
 | `--retry <N>` | Retry failed requests |
 | `--proxy <URL>` | Route requests through an `http`, `https`, `socks5`, or `socks5h` proxy URL |
@@ -105,7 +106,9 @@ environments with non-public certificates. For routine checks where certificate
 validation matters, pass `--insecure false`.
 
 Use a concurrency value appropriate for the authorized target and avoid causing
-unnecessary load.
+unnecessary load. `--request-jitter-ms` can reduce short burst pressure, but it
+does not replace authorization, conservative concurrency, or an agreed testing
+window.
 
 Proxy URLs may contain secrets. Take care not to expose them through shell
 history, logs, or shared process inspection.
@@ -115,6 +118,17 @@ history, logs, or shared process inspection.
 CSV output includes a header and the columns `url`, `http_code`,
 `size_download`, `webtitle`, and `error`. JSON Lines output writes one object
 per result with equivalent fields.
+
+## Benchmarks
+
+Run the Criterion benchmark suite with:
+
+```bash
+cargo bench
+```
+
+The suite covers request jitter calculation, title extraction, client building,
+filtering, CSV/JSON Lines output, and URL list loading.
 
 ## Project Status
 

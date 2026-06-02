@@ -1,18 +1,11 @@
-mod cli;
-mod error;
-mod filter;
-mod input;
-mod output;
-mod probe;
-
-use crate::cli::Args;
-use crate::error::CliError;
-use crate::filter::should_output;
-use crate::input::load_targets;
-use crate::output::{build_output_writer, finish_output, write_header, write_result};
-use crate::probe::{build_reqwest_client, probe_once_with_retry};
 use clap::Parser;
 use futures::stream::{self, StreamExt};
+use url_probe::cli::Args;
+use url_probe::error::CliError;
+use url_probe::filter::should_output;
+use url_probe::input::load_targets;
+use url_probe::output::{build_output_writer, finish_output, write_header, write_result};
+use url_probe::probe::{build_reqwest_client, probe_once_with_retry};
 
 /// 主运行函数，处理命令行参数，加载目标URL，执行探测，并输出结果
 async fn run() -> Result<(), CliError> {
@@ -29,14 +22,20 @@ async fn run() -> Result<(), CliError> {
     write_header(&mut output_writer)?;
 
     // 使用异步流处理目标URL，限制并发数量，并根据过滤条件输出结果 {{{1
-    let results = stream::iter(targets.into_iter().map(|target| {
-        let client = client.clone();
-        let method = args.method;
-        let retry = args.retry;
+    let results =
+        stream::iter(
+            targets.into_iter().map(|target| {
+                let client = client.clone();
+                let method = args.method;
+                let retry = args.retry;
+                let request_jitter_ms = args.request_jitter_ms;
 
-        async move { probe_once_with_retry(&client, target, method, retry).await }
-    }))
-    .buffer_unordered(args.concurrency);
+                async move {
+                    probe_once_with_retry(&client, target, method, retry, request_jitter_ms).await
+                }
+            }),
+        )
+        .buffer_unordered(args.concurrency);
 
     tokio::pin!(results);
 
