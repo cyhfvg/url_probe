@@ -20,12 +20,11 @@
 ## 测试与质量
 
 - [x] 清理当前 `cargo clippy --locked --all-targets --all-features -- -D warnings`
-  报告的 lint 问题，恢复 CI lint 检查通过。
+      报告的 lint 问题，恢复 CI lint 检查通过。
 - [x] 使用本地测试 HTTP 服务覆盖 `GET`、`HEAD`、HTML 标题与输出格式行为。
 - [x] 覆盖过滤、超时/重试、重定向及错误结果开关的集成测试。
 - [x] 增加 CLI 帮助文本为英文及关键默认值的回归测试。
 - [x] 增加 Criterion benchmark，覆盖核心解析、过滤、输出与请求辅助逻辑。
-- [ ] 在发布前验证预编译归档中的二进制、README 和许可证内容。
 
 ## 范围决策
 
